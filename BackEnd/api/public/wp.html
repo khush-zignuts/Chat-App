@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Chat</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        /* WhatsApp Theme Chat CSS */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #111b21;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            display: flex;
+            height: 100vh;
+            background-color: #111b21;
+        }
+
+        /* Left Side Styling */
+        .left-side {
+            width: 30%;
+            background-color: #202c33;
+            border-right: 1px solid #3b4a54;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .user-list {
+            flex: 1;
+            padding: 20px 16px;
+            overflow-y: auto;
+        }
+
+        .user-list h1 {
+            color: #e9edef;
+            font-size: 19px;
+            font-weight: 400;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #3b4a54;
+        }
+
+        .user-list ul {
+            list-style: none;
+        }
+
+        .user-list li {
+            background-color: #2a3942;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: #d1d7db;
+            font-size: 14px;
+        }
+
+        .user-list li:hover {
+            background-color: #374248;
+        }
+
+        .user-list li.active {
+            background-color: #2b5278;
+        }
+
+        /* Logged in user and logout section */
+        .left-side>div:last-child {
+            background-color: #1f2c34;
+            padding: 16px;
+            border-top: 1px solid #3b4a54;
+        }
+
+        .logged-in-user {
+            margin-bottom: 12px;
+        }
+
+        .logged-in-user p {
+            color: #d1d7db;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .logged-in-user strong {
+            color: #00a884;
+        }
+
+        .logged-in-user span {
+            color: #e9edef;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background-color: #d73502;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+            width: 100%;
+        }
+
+        .logout-btn:hover {
+            background-color: #b92e02;
+        }
+
+        /* Right Side Styling */
+        .right-side {
+            width: 70%;
+            background-color: #0b141a;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            background-color: #202c33;
+            padding: 16px 20px;
+            border-bottom: 1px solid #3b4a54;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .chat-header h2 {
+            color: #e9edef;
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        /* Chat Box */
+        .chat-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-image:
+                radial-gradient(circle at 25% 25%, rgba(0, 168, 132, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(0, 168, 132, 0.03) 0%, transparent 50%);
+            background-color: #0b141a;
+            position: relative;
+        }
+
+        .chat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23182229' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .chat-box {
+            width: 100%;
+            height: 500px;
+            overflow-y: auto;
+            background-color: #e5ddd5;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* General message box styling */
+        .message {
+            display: flex;
+            max-width: 70%;
+            word-wrap: break-word;
+            padding: 5px;
+        }
+
+        /* Sent messages (align right) */
+        .sent {
+            align-self: flex-end;
+            justify-content: flex-end;
+        }
+
+        .sent .message-content {
+            background-color: #dcf8c6;
+            padding: 10px 14px;
+            border-radius: 8px 0 8px 8px;
+        }
+
+        /* Received messages (align left) */
+        .received {
+            align-self: flex-start;
+            justify-content: flex-start;
+        }
+
+        .received .message-content {
+            background-color: white;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 8px;
+            border: 1px solid #ccc;
+        }
+
+        .message-content {
+            font-size: 14px;
+            line-height: 1.4;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Message Styling */
+        .message {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.received .message-content {
+            background-color: #202c33;
+            color: #e9edef;
+            border-bottom-left-radius: 2px;
+        }
+
+        .message.sent .message-content {
+            background-color: #005c4b;
+            color: #e9edef;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #8696a0;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        /* Input Area */
+        .input-area {
+            background-color: #202c33;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-top: 1px solid #3b4a54;
+        }
+
+        #messageInput {
+            flex: 1;
+            background-color: #2a3942;
+            border: none;
+            border-radius: 24px;
+            padding: 12px 16px;
+            color: #e9edef;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+        }
+
+        #messageInput::placeholder {
+            color: #8696a0;
+        }
+
+        #messageInput:focus {
+            background-color: #374248;
+        }
+
+        #sendMessageBtn {
+            background-color: #00a884;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        #sendMessageBtn:hover {
+            background-color: #06967a;
+        }
+
+        #sendMessageBtn:active {
+            background-color: #05866c;
+        }
+
+        /* Scrollbar Styling */
+        .user-list::-webkit-scrollbar,
+        .chat-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .user-list::-webkit-scrollbar-track,
+        .chat-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .user-list::-webkit-scrollbar-thumb,
+        .chat-box::-webkit-scrollbar-thumb {
+            background-color: #3b4a54;
+            border-radius: 3px;
+        }
+
+        .user-list::-webkit-scrollbar-thumb:hover,
+        .chat-box::-webkit-scrollbar-thumb:hover {
+            background-color: #4a5862;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .left-side {
+                width: 35%;
+            }
+
+            .right-side {
+                width: 65%;
+            }
+
+            .user-list h1 {
+                font-size: 16px;
+            }
+
+            .message-content {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chat-container {
+                flex-direction: column;
+            }
+
+            .left-side {
+                width: 100%;
+                height: 40vh;
+            }
+
+            .right-side {
+                width: 100%;
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <!-- Left Side: User list + self + logout -->
+        <div class="left-side">
+            <div class="user-list">
+                <h1>Your Contact List:</h1>
+                <ul id="userList"></ul>
+                <!-- show all user list -->
+            </div>
+            <div>
+                <div class="logged-in-user">
+                    <p><strong>Logged in as:</strong> <span id="loggedInUser"></span></p>
+                    <!-- shown login user list -->
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                <!-- logout functionality -->
+            </div>
+        </div>
+
+        <!-- Right Side: Chat -->
+        <div class="right-side">
+            <div class="chat-header">
+                <h2 id="chatWith">Select a user to chat</h2>
+            </div>
+
+            <div class="chat-box" id="chatBox">
+                <!-- Messages go here -->
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Type your message..." />
+                <button id="sendMessageBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+
+        const socket = io('http://localhost:8001');
+
+        const token = localStorage.getItem("token");
+
+        let loggedInUserId = null;
+        let loggedInUserName = null;
+
+        //socket whene they registered
+        socket.on("registered", (data) => {
+            alert(data.message);
+        });
+
+        //left bottom khush login name:
+        async function fetchLoginUser() {
+            try {
+                const res = await axios.get("http://localhost:8001/api/action/getLoginUser", {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                const user = res.data.data;
+                const userId = user.id;
+                const userName = user.name;
+
+                if (user.status && user?.name) {
+                    loggedInUserId = userId;
+                    loggedInUserName = userName;
+                    socket.emit("register", user);
+                    document.getElementById("loggedInUser").textContent = user.name;
+                }
+
+            } catch (err) {
+                console.error("Error fetching logged-in user:", err.message);
+                document.getElementById("loggedInUser").textContent = "Error fetching user";
+            }
+        }
+
+        function handleLogout() {
+            window.location.href = "/logout.html";
+        }
+
+        //left side all contact names - except khush 
+        // Fetch users list
+        async function fetchUsers() {
+            try {
+                const res = await axios.get("http://localhost:8001/api/action/getUser", {
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                });
+                const data = res.data;
+
+                if (data.status && data.data) {
+                    const userList = document.getElementById("userList");
+                    userList.innerHTML = "";
+
+                    data.data.forEach(user => {
+                        const li = document.createElement("li");
+
+                        li.textContent = user.name;
+
+                        // Add click event listener to open chat box
+                        li.addEventListener('click', () => openChatBox(user));
+
+                        userList.appendChild(li);
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching users:", err);
+            }
+        }
+
+        //right side main box
+
+        //   open the chat box for a specific user on the right side
+
+        let currentReceiverId = null;
+        let currentReceiverName = null;
+        let currentSenderChatId = null;
+        let currentReceiverChatId = null;
+        let chatId = null;
+
+        async function openChatBox(user) {
+            currentReceiverId = user.id;
+            currentReceiverName = user.name;
+
+            try {
+                const [user1Id, user2Id] =
+                    [loggedInUserId, currentReceiverId]
+
+                const response = await axios.post("http://localhost:8001/api/chat/getOrCreateChatId", {
+                    user1Id,
+                    user2Id,
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    }
+                });
+                console.log('response: ', response);
+
+                const chatId = response.data.data.id;
+
+                currentSenderChatId = chatId;
+                currentReceiverChatId = chatId;
+            }
+            catch (error) {
+                console.error("Failed to get or create chat:", error);
+                alert("Unable to start chat with user.");
+                return;
+            }
+
+            // Update the chat header  
+            document.getElementById("chatWith").textContent = `Chat with ${user.name}`;
+
+            const chatBox = document.getElementById("chatBox");
+            chatBox.innerHTML = '';
+
+            // input field and send button 
+            document.getElementById("messageInput").value = '';
+            document.getElementById("sendMessageBtn").onclick = () => sendMessage(user);
+
+            await loadMessages(currentSenderChatId);
+
+            document.getElementById("chatBox").scrollTop = document.getElementById("chatBox").scrollHeight;
+        }
+
+        socket.on("message", (data) => {
+
+            // const chatBox = document.getElementById("chatBox");
+
+            // if (data.senderId === loggedInUserId && data.receiverId === currentReceiverId
+            //     || data.senderId === currentReceiverId && data.receiverId === loggedInUserId
+            // ) {
+            //     const messageDiv = document.createElement("div");
+            //     messageDiv.textContent = `${data.senderId === loggedInUserId ? "you" : `${currentReceiverName}`}: ${data.message}`;
+            //     chatBox.appendChild(messageDiv);
+            // }
+
+
+            const chatBox = document.getElementById("chatBox");
+
+            const isRelevantMessage = (
+                (data.senderId === loggedInUserId && data.receiverId === currentReceiverId) ||
+                (data.senderId === currentReceiverId && data.receiverId === loggedInUserId)
+            );
+
+            if (isRelevantMessage) {
+                const messageDiv = document.createElement("div");
+                messageDiv.classList.add("message");
+                messageDiv.classList.add(data.senderId === loggedInUserId ? "sent" : "received");
+
+                const messageContent = document.createElement("div");
+                messageContent.classList.add("message-content");
+
+                // Show "you" for self, otherwise show receiver name
+                const senderName = data.senderId === loggedInUserId ? "you" : currentReceiverName;
+                messageContent.textContent = `${senderName}: ${data.message}`;
+
+                messageDiv.appendChild(messageContent);
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        });
+
+        async function loadMessages(currentSenderChatId
+            // , beforeTime = null
+        ) {
+            try {
+                let query;
+
+                const response = await axios.get(`http://localhost:8001/api/message/get/${currentSenderChatId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    query: {
+                        limit: 20,
+                    }
+                });
+
+                const result = response.data;
+                console.log('result: ', result);
+
+                if (result.status && result.data.length) {
+                    const messages = result.data;
+                    const chatBox = document.getElementById("chatBox");
+
+                    const previousScrollHeight = chatBox.scrollHeight;
+
+                    // messages.forEach((msg) => {
+                    //     const div = document.createElement("div");
+                    //     div.textContent = `${msg.senderId === loggedInUserId ? "you" : currentReceiverName}: ${msg.message}`;
+                    //     chatBox.prepend(div);
+                    // });
+
+                    const addedDates = new Set(); // To avoid duplicate date dividers
+
+                    messages.forEach((msg) => {
+                        const messageDate = new Date(msg.created_at);
+                        const dateKey = messageDate.toDateString(); // e.g., "Thu May 22 2025"
+
+                        const today = new Date();
+                        const isBeforeToday = messageDate.toDateString() !== today.toDateString();
+
+                        // Add date divider if message is before today and not already added
+                        if (isBeforeToday && !addedDates.has(dateKey)) {
+                            const dateDivider = document.createElement("div");
+                            dateDivider.classList.add("date-divider");
+                            dateDivider.textContent = dateKey;
+                            chatBox.prepend(dateDivider);
+                            addedDates.add(dateKey);
+                        }
+
+                        const div = document.createElement("div");
+                        div.classList.add("message");
+                        div.classList.add(msg.senderId === loggedInUserId ? "sent" : "received");
+
+                        const content = document.createElement("div");
+                        content.classList.add("message-content");
+
+                        const senderName = msg.senderId === loggedInUserId ? "you" : currentReceiverName;
+
+                        // Format time as HH:MM:SS
+                        const hours = messageDate.getHours().toString().padStart(2, '0');
+                        const minutes = messageDate.getMinutes().toString().padStart(2, '0');
+                        const seconds = messageDate.getSeconds().toString().padStart(2, '0');
+                        const formattedTime = `${hours}:${minutes}:${seconds}`;
+
+                        content.textContent = `${senderName}: ${msg.message} (${formattedTime})`;
+
+                        div.appendChild(content);
+                        chatBox.prepend(div);
+                    });
+
+
+
+                    earliestMessageTime = messages[0].createdAt;
+
+                    // maintain scroll position after prepending
+                    chatBox.scrollTop = chatBox.scrollHeight - previousScrollHeight;
+                }
+
+            } catch (err) {
+                console.error("Error loading messages:", err);
+            }
+        }
+
+        // Function to send the message (for demo purposes)
+        async function sendMessage(user) {
+            const message = messageInput.value;
+
+            if (message.trim() !== '') {
+                const messagePayload = {
+                    chatId: currentSenderChatId,
+                    senderId: loggedInUserId,
+                    receiverId: currentReceiverId,
+                    message: message
+                };
+
+                socket.emit('sendMessage', messagePayload);
+
+                try {
+                    const response = await axios.post(
+                        "http://localhost:8001/api/message/send",
+                        messagePayload,
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem("token") || ""}`,
+                            }
+                        }
+                    );
+                    console.log('response: ', response);
+
+                    const data = response.data;
+
+                    if (!response.status || response.status >= 400) {
+                        console.error("API error:", data.message || data.error);
+                    }
+
+                } catch (error) {
+                    if (error.response) {
+
+                        console.error("API error:", error.response.data.message || error.response.data.error);
+                    } else if (error.request) {
+
+                        console.error("No response from server:", error.request);
+                    } else {
+
+                        console.error("Failed to send message to server:", error.message);
+                    }
+                }
+
+                // Clear the input field
+                messageInput.value = '';
+            }
+        }
+
+        let earliestMessageTime = null;
+
+
+
+        window.onload = function () {
+            fetchLoginUser();
+            fetchUsers();
+        };
+
+        document.getElementById("chatBox").addEventListener("scroll", () => {
+            const chatBox = document.getElementById("chatBox");
+
+            if (chatBox.scrollTop === 0 && earliestMessageTime && currentSenderChatId) {
+                loadMessages(currentSenderChatId, earliestMessageTime);
+            }
+        });
+
+
+    </script>
+</body>
+
+</html>

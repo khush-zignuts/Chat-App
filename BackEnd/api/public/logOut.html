@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Logout</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      text-align: center;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .message {
+      margin-top: 20px;
+      color: green;
+    }
+
+    .error {
+      margin-top: 20px;
+      color: red;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Are you sure you want to logout?</h2>
+  <button id="logoutBtn">Logout</button>
+
+  <div id="responseMessage" class="message"></div>
+  <div id="errorMessage" class="error"></div>
+
+  <script>
+    const logoutBtn = document.getElementById("logoutBtn");
+    const responseMessage = document.getElementById("responseMessage");
+    const errorMessage = document.getElementById("errorMessage");
+
+    logoutBtn.addEventListener("click", async () => {
+      responseMessage.textContent = "";
+      errorMessage.textContent = "";
+
+      const token = localStorage.getItem("token");
+      const userId = localStorage.getItem("userId");
+
+      if (!token || !userId) {
+        errorMessage.textContent = "You are already logged out.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:8001/api/user/logout/${userId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 200) {
+          responseMessage.textContent = data.message || "Logout successful.";
+          localStorage.clear(); // clear both token and userId
+          setTimeout(() => {
+            window.location.href = "/login.html";
+          }, 1500);
+        } else {
+          errorMessage.textContent = data.message || "Logout failed.";
+        }
+      } catch (err) {
+        console.error("Logout error:", err);
+        errorMessage.textContent = "Something went wrong. Please try again.";
+      }
+    });
+  </script>
+</body>
+
+</html>

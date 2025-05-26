@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify OTP</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+    }
+
+    form {
+      max-width: 400px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    input,
+    button {
+      margin: 10px 0;
+      padding: 10px;
+    }
+
+    .error {
+      color: red;
+      font-size: 14px;
+    }
+
+    .success {
+      color: green;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Verify OTP</h2>
+  <form id="verifyForm">
+    <input type="text" name="otp" placeholder="Enter OTP" required />
+    <button type="submit">Verify</button>
+    <div id="message" class="error"></div>
+  </form>
+
+  <script>
+    const form = document.getElementById("verifyForm");
+    const messageDiv = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageDiv.textContent = "";
+      messageDiv.className = "error";
+
+      const otp = form.otp.value.trim();
+      const email = localStorage.getItem("email");
+
+      if (!email) {
+        messageDiv.textContent = "Email not found. Please signup again.";
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:8001/api/user/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, otp }),
+        });
+
+        const data = await res.json();
+
+        if (data.status) {
+          messageDiv.className = "success";
+          messageDiv.textContent = data.message || "OTP verified successfully!";
+          setTimeout(() => {
+            // Redirect or go to login/dashboard
+            window.location.href = "/login.html";
+          }, 1500);
+        } else {
+          messageDiv.textContent = data.error || data.message || "Invalid OTP.";
+        }
+      } catch (err) {
+        console.error("Verification error:", err);
+        messageDiv.textContent = "Something went wrong. Please try again.";
+      }
+    });
+  </script>
+</body>
+
+</html>
